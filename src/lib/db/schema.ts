@@ -16,6 +16,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,28 @@ export const portCache = pgTable("port_cache", {
   country: char("country", { length: 2 }),
   updatedAt: timestamptz("updated_at").defaultNow().notNull(),
 });
+
+// ─── Relations ───────────────────────────────────────────────────────────────
+
+export const watchesRelations = relations(watches, ({ many }) => ({
+  alertRules: many(alertRules),
+  priceSnapshots: many(priceSnapshots),
+  notifications: many(notifications),
+}));
+
+export const alertRulesRelations = relations(alertRules, ({ one }) => ({
+  watch: one(watches, { fields: [alertRules.watchId], references: [watches.id] }),
+}));
+
+export const priceSnapshotsRelations = relations(priceSnapshots, ({ one }) => ({
+  watch: one(watches, { fields: [priceSnapshots.watchId], references: [watches.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  watch: one(watches, { fields: [notifications.watchId], references: [watches.id] }),
+  rule: one(alertRules, { fields: [notifications.ruleId], references: [alertRules.id] }),
+  snapshot: one(priceSnapshots, { fields: [notifications.snapshotId], references: [priceSnapshots.id] }),
+}));
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
