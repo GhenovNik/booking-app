@@ -23,10 +23,7 @@ const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
 export const watchModeEnum = pgEnum("watch_mode", ["fixed", "flexible"]);
 export const cabinEnum = pgEnum("cabin", ["ECONOMY", "BUSINESS", "FIRST"]);
-export const alertTypeEnum = pgEnum("alert_type", [
-  "absolute_max",
-  "percent_drop",
-]);
+export const alertTypeEnum = pgEnum("alert_type", ["min_drop"]);
 
 // ─── watches ─────────────────────────────────────────────────────────────────
 
@@ -70,7 +67,7 @@ export const alertRules = pgTable("alert_rules", {
     .references(() => watches.id, { onDelete: "cascade" }),
   type: alertTypeEnum("type").notNull(),
   value: numeric("value", { precision: 10, scale: 2 }).notNull(),
-  currency: char("currency", { length: 3 }).default("EUR").notNull(),
+  currency: char("currency", { length: 3 }).default("USD").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
 });
 

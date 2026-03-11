@@ -55,29 +55,28 @@ export function getBot(): Bot<BotContext> {
 function registerCommands(bot: Bot<BotContext>) {
   // Lazy import to avoid circular deps
   const { startCommand } = require("./commands/start");
-  const { listCommand } = require("./commands/list");
+  const { watchesCommand, handleWatchAction } = require("./commands/watches");
   const { statusCommand } = require("./commands/status");
   const { pauseCommand } = require("./commands/pause");
   const { resumeCommand } = require("./commands/resume");
-  const { deleteCommand } = require("./commands/delete");
+  const { removeCommand } = require("./commands/remove");
   const { checkCommand } = require("./commands/check");
   const { historyCommand } = require("./commands/history");
-  const { rulesCommand } = require("./commands/rules");
+  const { alertsCommand } = require("./commands/alerts");
 
   bot.command("start", startCommand);
-  bot.command("list", listCommand);
+  bot.command("watches", watchesCommand);
   bot.command("status", statusCommand);
   bot.command("pause", pauseCommand);
   bot.command("resume", resumeCommand);
-  bot.command("delete", deleteCommand);
+  bot.command("remove", removeCommand);
   bot.command("check", checkCommand);
   bot.command("history", historyCommand);
-  bot.command("rules", rulesCommand);
-  bot.command("new", async (ctx) => {
+  bot.command("alerts", alertsCommand);
+  bot.command("add", async (ctx) => {
     await ctx.conversation.enter("new-watch");
   });
 
-  // Inline keyboard callbacks
-  const { handleDeleteCallback } = require("./commands/delete");
-  bot.callbackQuery(/^delete_(confirm|cancel):/, handleDeleteCallback);
+  // Watch action buttons (from /watches list)
+  bot.callbackQuery(/^wa_/, handleWatchAction);
 }

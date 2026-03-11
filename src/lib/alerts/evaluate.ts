@@ -3,18 +3,22 @@ import type { AlertRule, PriceSnapshot } from "@/lib/db/schema";
 export interface TriggeredAlert {
   rule: AlertRule;
   snapshot: PriceSnapshot;
-  /** Human-readable reason, e.g. "€189 ≤ €200" */
+  /** Human-readable reason, e.g. "↓ $52 ($348 from baseline $400)" */
   reason: string;
 }
 
 /**
  * Evaluate alert rules against a fresh price snapshot.
  * Pure function — no DB or network calls.
+ *
+ * Rule type "min_drop": triggers when (baseline - price) >= rule.value.
+ * If rule.value === 0, triggers on any price drop from baseline.
+ * Baseline = oldest known snapshot price for this watch.
  */
 export function evaluateRules(
   rules: AlertRule[],
   snapshot: PriceSnapshot,
-  /** Current baseline (oldest known price) for percent_drop rules */
+  /** Oldest known price for this watch (first snapshot) */
   baseline: number | null
 ): TriggeredAlert[] {
   const price = Number(snapshot.price);
@@ -22,27 +26,19 @@ export function evaluateRules(
 
   for (const rule of rules) {
     if (!rule.isActive) continue;
+    if (rule.type !== "min_drop") continue;
+    if (baseline === null) continue; // first check — just saving baseline, no alert yet
 
-    const threshold = Number(rule.value);
+    const minDrop = Number(rule.value);
+    const drop = baseline - price;
 
-    if (rule.type === "absolute_max") {
-      if (price <= threshold) {
-        triggered.push({
-          rule,
-          snapshot,
-          reason: `${rule.currency} ${price.toFixed(0)} ≤ ${rule.currency} ${threshold.toFixed(0)}`,
-        });
-      }
-    } else if (rule.type === "percent_drop") {
-      if (baseline === null) continue; // can't evaluate without baseline
-      const dropPct = ((baseline - price) / baseline) * 100;
-      if (dropPct >= threshold) {
-        triggered.push({
-          rule,
-          snapshot,
-          reason: `↓ ${dropPct.toFixed(1)}% (${rule.currency} ${price.toFixed(0)} from ${rule.currency} ${baseline.toFixed(0)})`,
-        });
-      }
+    if (drop >= minDrop) {
+      const dropStr = drop.toFixed(0);
+      const reason =
+        minDrop === 0
+          ? `↓ $${dropStr} ($${price.toFixed(0)} from baseline $${baseline.toFixed(0)})`
+          : `↓ $${dropStr} ($${price.toFixed(0)} from baseline $${baseline.toFixed(0)}, threshold $${minDrop.toFixed(0)})`;
+      triggered.push({ rule, snapshot, reason });
     }
   }
 

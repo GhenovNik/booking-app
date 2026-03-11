@@ -5,13 +5,13 @@ import { getWatch } from "@/lib/db/queries";
 export async function checkCommand(ctx: CommandContext<BotContext>) {
   const id = Number(ctx.match);
   if (!id) {
-    await ctx.reply("Usage: /check <id>");
+    await ctx.reply("Использование: /check <id>\n\nИли используй /watches и нажми 🔍 Проверить.");
     return;
   }
 
   const watch = await getWatch(id);
   if (!watch) {
-    await ctx.reply(`Watch #${id} not found.`);
+    await ctx.reply(`Отслеживание #${id} не найдено.`);
     return;
   }
 
@@ -25,13 +25,13 @@ export async function checkCommand(ctx: CommandContext<BotContext>) {
     });
 
     if (res.ok) {
-      await ctx.reply(`🔍 Triggered price check for *${watch.name}*...`, {
+      await ctx.reply(`🔍 Запущена проверка цены для *${watch.name}*...`, {
         parse_mode: "Markdown",
       });
     } else {
-      await ctx.reply(`⚠️ Check failed: ${res.status} ${res.statusText}`);
+      await ctx.reply(`⚠️ Ошибка проверки: ${res.status} ${res.statusText}`);
     }
   } catch (err) {
-    await ctx.reply(`⚠️ Could not reach app: ${String(err)}`);
+    await ctx.reply(`⚠️ Не удалось достучаться до приложения: ${String(err)}`);
   }
 }

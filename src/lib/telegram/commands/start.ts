@@ -3,17 +3,16 @@ import type { BotContext } from "../types";
 
 export async function startCommand(ctx: CommandContext<BotContext>) {
   await ctx.reply(
-    `✈️ *FareTicketHunter*\n\nI monitor Turkish Airlines prices and alert you when they drop.\n\n` +
-      `*Commands:*\n` +
-      `/new — create a new price watch\n` +
-      `/list — show all your watches\n` +
-      `/status — system health\n` +
-      `/pause <id> — pause a watch\n` +
-      `/resume <id> — resume a watch\n` +
-      `/check <id> — trigger immediate price check\n` +
-      `/rules <id> — view alert rules\n` +
-      `/history <id> — price history summary\n` +
-      `/delete <id> — delete a watch`,
+    `✈️ *FareTicketHunter*\n\nОтслеживаю цены Turkish Airlines и сообщаю когда они падают.\n\n` +
+      `*Команды:*\n` +
+      `/add — добавить новое отслеживание\n` +
+      `/watches — список всех отслеживаний (с кнопками управления)\n` +
+      `/status — состояние системы\n` +
+      `/check <id> — проверить цену прямо сейчас\n` +
+      `/alerts <id> — правила уведомлений\n` +
+      `/history <id> — история цен\n` +
+      `/remove <id> — удалить отслеживание\n\n` +
+      `💡 Совет: используй /watches — там можно паузить, возобновлять и удалять одной кнопкой, без ввода ID.`,
     { parse_mode: "Markdown" }
   );
 }

@@ -126,13 +126,13 @@ export async function newWatchConversation(conv: Conv, ctx: BotContext) {
     | "BUSINESS"
     | "FIRST";
 
-  // ── Alert price ───────────────────────────────────────────────────────────
-  const alertInput = await askOptional(
+  // ── Alert: minimum drop ───────────────────────────────────────────────────
+  const dropInput = await askOptional(
     conv,
     ctx,
-    "Max price alert in EUR? (e.g. 200)"
+    "Minimum price drop (in $) to notify? (e.g. 50 — default, 0 = any drop)"
   );
-  const alertPrice = alertInput ? Number(alertInput) : null;
+  const minDrop = dropInput ? Math.max(0, Number(dropInput)) : 50;
 
   // ── Confirm ───────────────────────────────────────────────────────────────
   const summary =
@@ -141,7 +141,7 @@ export async function newWatchConversation(conv: Conv, ctx: BotContext) {
     `Route: ${origin} → ${dest}\n` +
     `Mode: ${mode === "fixed" ? `Fixed (${depDate}${retDate ? ` → ${retDate}` : ""})` : `Flexible (${depFrom}–${depTo}${retFrom ? ` / ${retFrom}–${retTo}` : ""})`}\n` +
     `Cabin: ${cabin}\n` +
-    (alertPrice ? `Alert: ≤ EUR ${alertPrice}\n` : "Alert: none\n");
+    `Alert: price drops by $${minDrop}${minDrop === 0 ? " (any drop)" : ""} from baseline\n`;
 
   const confirmKb = new InlineKeyboard()
     .text("✅ Create", "confirm:yes")
@@ -170,17 +170,15 @@ export async function newWatchConversation(conv: Conv, ctx: BotContext) {
       : { depFrom, depTo, retFrom, retTo }),
   });
 
-  if (alertPrice && !isNaN(alertPrice) && alertPrice > 0) {
-    await createAlertRule({
-      watchId: watch.id,
-      type: "absolute_max",
-      value: String(alertPrice),
-      currency: "EUR",
-    });
-  }
+  await createAlertRule({
+    watchId: watch.id,
+    type: "min_drop",
+    value: String(minDrop),
+    currency: "USD",
+  });
 
   await ctx.reply(
-    `✅ Watch *#${watch.id} ${name}* created!\n\nI'll check prices every 12 hours. Use /check ${watch.id} to trigger a check now.`,
+    `✅ Watch *#${watch.id} ${name}* created!\n\nFirst check will set the baseline price. I'll check every 12 hours and notify when price drops by $${minDrop}${minDrop === 0 ? " (any amount)" : ""}.\n\nUse /watches to see all your watches.`,
     { parse_mode: "Markdown" }
   );
 }
