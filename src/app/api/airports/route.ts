@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchPortCache, isPortCacheStale, upsertPortCache } from "@/lib/db/queries";
 import { fetchPortList } from "@/lib/ta-api/client";
+import { searchStaticAirports } from "@/lib/airports-static";
 
 /**
  * GET /api/airports?q=ams
  * Search airports by IATA code, city, or name.
- * Refreshes the port cache from TA API if stale (>24h) or empty.
+ * Priority: DB cache (from TA API) → static fallback.
  */
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ airports: [] });
   }
 
-  // Refresh cache in background if stale — don't block the search
+  // Refresh TA API cache in background if stale — don't block the search
   isPortCacheStale().then(async (stale) => {
     if (!stale) return;
     try {
@@ -28,7 +29,18 @@ export async function GET(req: NextRequest) {
     }
   });
 
-  const airports = await searchPortCache(q);
+  let airports = await searchPortCache(q);
+
+  // Fall back to static list if DB cache is empty (TA API not configured yet)
+  if (airports.length === 0) {
+    airports = searchStaticAirports(q).map((a) => ({
+      iataCode: a.iataCode,
+      name: a.name,
+      city: a.city,
+      country: a.country,
+      updatedAt: new Date(),
+    }));
+  }
 
   return NextResponse.json({
     airports: airports.map((a) => ({
