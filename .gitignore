@@ -20,6 +20,9 @@
 .env.test.local
 .env.production.local
 
+# TypeScript
+*.tsbuildinfo
+
 # misc
 .DS_Store
 npm-debug.log*
