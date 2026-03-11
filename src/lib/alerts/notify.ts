@@ -36,7 +36,7 @@ export async function sendAlerts(
       try {
         const sent = await bot.api.sendMessage(chatId, text, {
           parse_mode: "Markdown",
-          disable_web_page_preview: true,
+          link_preview_options: { is_disabled: true },
         });
 
         await insertNotification({

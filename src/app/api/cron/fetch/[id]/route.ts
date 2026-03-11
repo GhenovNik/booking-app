@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWatch } from "@/lib/db/queries";
+import {
+  getWatch,
+  insertSnapshot,
+  markWatchChecked,
+  getBaselinePrice,
+} from "@/lib/db/queries";
+import { fetchAvailability } from "@/lib/ta-api/client";
+import type { AvailabilityRequest } from "@/lib/ta-api/types";
+import { evaluateRules } from "@/lib/alerts/evaluate";
+import { sendAlerts } from "@/lib/alerts/notify";
 
 /**
  * POST /api/cron/fetch/[id]
  * Manually trigger a price check for a single watch.
  * Protected by x-cron-secret header (checked in middleware).
- *
- * TODO Phase 1: add TA API fetch + snapshot insert + alert evaluation.
  */
 export async function POST(
   _req: NextRequest,
@@ -19,12 +26,59 @@ export async function POST(
     return NextResponse.json({ error: "Watch not found" }, { status: 404 });
   }
 
-  // TODO Phase 1: fetch prices, store snapshots, send alerts
-  console.log(`[cron/fetch/${id}] Manual trigger for "${watch.name}" — TA API pending.`);
+  const req: AvailabilityRequest = {
+    origin: watch.origin,
+    destination: watch.destination,
+    cabin: watch.cabin as AvailabilityRequest["cabin"],
+    pax: watch.pax,
+    ...(watch.mode === "fixed"
+      ? { departureDate: watch.depDate ?? undefined, returnDate: watch.retDate }
+      : {
+          depFrom: watch.depFrom ?? undefined,
+          depTo: watch.depTo ?? undefined,
+          retFrom: watch.retFrom ?? undefined,
+          retTo: watch.retTo ?? undefined,
+        }),
+  };
 
-  return NextResponse.json({
-    watchId: id,
-    name: watch.name,
-    message: "TA API not yet configured — Phase 1 pending.",
-  });
+  try {
+    const matrix = await fetchAvailability(req);
+    const baseline = await getBaselinePrice(id);
+
+    let alertCount = 0;
+
+    for (const cell of matrix.cells) {
+      if (!cell.outboundDate || cell.price <= 0) continue;
+
+      const snap = await insertSnapshot({
+        watchId: id,
+        outboundDate: cell.outboundDate,
+        inboundDate: cell.inboundDate ?? null,
+        price: String(cell.price),
+        currency: cell.currency,
+        isPromo: cell.isPromo,
+        raw: cell.raw,
+      });
+
+      const triggered = evaluateRules(watch.alertRules, snap, baseline);
+
+      if (triggered.length > 0) {
+        await sendAlerts(watch, triggered);
+        alertCount += triggered.length;
+      }
+    }
+
+    await markWatchChecked(id);
+
+    return NextResponse.json({
+      watchId: id,
+      name: watch.name,
+      cells: matrix.cells.length,
+      alerts: alertCount,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[cron/fetch/${id}] Error: ${message}`);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

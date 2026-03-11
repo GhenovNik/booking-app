@@ -8,15 +8,16 @@ import {
   smallint,
   integer,
   boolean,
-  timestamptz,
+  timestamp,
   bigserial,
   numeric,
   jsonb,
   bigint,
   index,
-  uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql as drizzleSql } from "drizzle-orm";
+
+const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ export const watches = pgTable(
   (t) => ({
     activeLastCheckedIdx: index("watches_active_last_checked_idx")
       .on(t.isActive, t.lastCheckedAt)
-      .where(t.isActive),
+      .where(drizzleSql`${t.isActive} = true`),
   })
 );
 

@@ -1,7 +1,8 @@
 import { db } from "./index";
-import { watches, alertRules, priceSnapshots, notifications } from "./schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { watches, alertRules, priceSnapshots, notifications, portCache } from "./schema";
+import { eq, desc, sql, ilike, or } from "drizzle-orm";
 import type { NewWatch, NewAlertRule, NewPriceSnapshot } from "./schema";
+import type { PortEntry } from "@/lib/ta-api/types";
 
 // ─── Watches ──────────────────────────────────────────────────────────────────
 
@@ -145,4 +146,88 @@ export async function insertNotification(data: {
   messageId?: string;
 }) {
   await db.insert(notifications).values(data);
+}
+
+// ─── Watch — scheduler updates ────────────────────────────────────────────────
+
+/** Mark a watch as just checked (updates last_checked_at to now). */
+export async function markWatchChecked(id: number) {
+  await db
+    .update(watches)
+    .set({ lastCheckedAt: new Date() })
+    .where(eq(watches.id, id));
+}
+
+// ─── Price snapshots — baseline for percent_drop rules ────────────────────────
+
+/**
+ * Returns the oldest known price for a watch (used as baseline for
+ * percent_drop alert rules). Returns null if no snapshots exist yet.
+ */
+export async function getBaselinePrice(watchId: number): Promise<number | null> {
+  const rows = await db.execute<{ price: string }>(sql`
+    SELECT price::text
+    FROM price_snapshots
+    WHERE watch_id = ${watchId}
+    ORDER BY checked_at ASC
+    LIMIT 1
+  `);
+  const row = rows.rows[0];
+  return row ? Number(row.price) : null;
+}
+
+// ─── Port cache ───────────────────────────────────────────────────────────────
+
+/** Upsert airport data into port_cache (replaces stale rows). */
+export async function upsertPortCache(ports: PortEntry[]) {
+  if (ports.length === 0) return;
+  await db
+    .insert(portCache)
+    .values(
+      ports.map((p) => ({
+        iataCode: p.iataCode,
+        name: p.name,
+        city: p.city ?? null,
+        country: p.country ?? null,
+        updatedAt: new Date(),
+      }))
+    )
+    .onConflictDoUpdate({
+      target: portCache.iataCode,
+      set: {
+        name: sql`excluded.name`,
+        city: sql`excluded.city`,
+        country: sql`excluded.country`,
+        updatedAt: sql`excluded.updated_at`,
+      },
+    });
+}
+
+/** Search port_cache by IATA code, city, or name (case-insensitive). */
+export async function searchPortCache(q: string) {
+  return db
+    .select()
+    .from(portCache)
+    .where(
+      or(
+        ilike(portCache.iataCode, `${q}%`),
+        ilike(portCache.city, `%${q}%`),
+        ilike(portCache.name, `%${q}%`)
+      )
+    )
+    .limit(20)
+    .orderBy(portCache.iataCode);
+}
+
+/** Returns true if the port cache is empty or older than 24 hours. */
+export async function isPortCacheStale(): Promise<boolean> {
+  const rows = await db.execute<{ updated_at: string }>(sql`
+    SELECT updated_at
+    FROM port_cache
+    ORDER BY updated_at DESC
+    LIMIT 1
+  `);
+  if (rows.rows.length === 0) return true;
+  const age = Date.now() - new Date(rows.rows[0].updated_at).getTime();
+  return age > 24 * 60 * 60 * 1000;
 }

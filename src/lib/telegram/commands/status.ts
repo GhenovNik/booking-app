@@ -13,9 +13,10 @@ export async function statusCommand(ctx: CommandContext<BotContext>) {
       })
       .from(watches);
 
-    const [{ snapshots }] = await db.execute<{ snapshots: number }>(
+    const snapshotResult = await db.execute<{ snapshots: number }>(
       sql`SELECT count(*)::int AS snapshots FROM price_snapshots`
     );
+    const { snapshots } = snapshotResult.rows[0] ?? { snapshots: 0 };
 
     await ctx.reply(
       `🖥️ *System Status*\n\n` +
