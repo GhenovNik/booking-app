@@ -55,8 +55,7 @@ export default function NewWatchPage() {
   const [pax, setPax] = useState(1);
   const [cabin, setCabin] = useState<Cabin>("ECONOMY");
   const [fetchIntervalH, setFetchIntervalH] = useState(12);
-  const [alertMaxPrice, setAlertMaxPrice] = useState("");
-  const [alertCurrency, setAlertCurrency] = useState("EUR");
+  const [alertMinDrop, setAlertMinDrop] = useState("");
 
   // Auto-generate name from route
   function autoName() {
@@ -84,7 +83,7 @@ export default function NewWatchPage() {
       pax,
       cabin,
       fetchIntervalH,
-      ...(alertMaxPrice ? { alertMaxPrice: Number(alertMaxPrice), alertCurrency } : {}),
+      ...(alertMinDrop !== "" ? { alertMinDrop: Number(alertMinDrop) } : {}),
     };
 
     if (mode === "fixed") {
@@ -244,27 +243,16 @@ export default function NewWatchPage() {
         {/* Alert */}
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
           <h2 className="text-sm font-medium text-gray-300">Price alert <span className="text-gray-500">(optional)</span></h2>
-          <p className="text-xs text-gray-500">Notify me via Telegram when price drops below:</p>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={alertMaxPrice}
-              onChange={(e) => setAlertMaxPrice(e.target.value)}
-              placeholder="e.g. 450"
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-            />
-            <select
-              value={alertCurrency}
-              onChange={(e) => setAlertCurrency(e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-            >
-              {["EUR", "USD", "GBP", "TRY"].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+          <p className="text-xs text-gray-500">Notify me via Telegram when price drops by at least $ from the first recorded price. Leave empty for any drop.</p>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={alertMinDrop}
+            onChange={(e) => setAlertMinDrop(e.target.value)}
+            placeholder="e.g. 50 (default: any drop)"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+          />
         </div>
 
         {error && (

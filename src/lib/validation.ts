@@ -15,8 +15,7 @@ export const CreateWatchSchema = z
       pax: z.number().int().min(1).max(9).default(1),
       cabin: z.enum(["ECONOMY", "BUSINESS", "FIRST"]).default("ECONOMY"),
       fetchIntervalH: z.number().int().min(1).max(168).default(12),
-      alertMaxPrice: z.number().positive().optional(), // convenience: create rule in one shot
-      alertCurrency: z.string().length(3).default("EUR"),
+      alertMinDrop: z.number().min(0).optional(), // min $ drop from baseline to trigger alert
     }),
     z.object({
       name: z.string().min(1).max(100),
@@ -30,8 +29,7 @@ export const CreateWatchSchema = z
       pax: z.number().int().min(1).max(9).default(1),
       cabin: z.enum(["ECONOMY", "BUSINESS", "FIRST"]).default("ECONOMY"),
       fetchIntervalH: z.number().int().min(1).max(168).default(12),
-      alertMaxPrice: z.number().positive().optional(),
-      alertCurrency: z.string().length(3).default("EUR"),
+      alertMinDrop: z.number().min(0).optional(),
     }),
   ])
   .refine(

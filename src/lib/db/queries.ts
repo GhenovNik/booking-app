@@ -158,11 +158,11 @@ export async function markWatchChecked(id: number) {
     .where(eq(watches.id, id));
 }
 
-// ─── Price snapshots — baseline for percent_drop rules ────────────────────────
+// ─── Price snapshots — baseline for min_drop rules ────────────────────────
 
 /**
  * Returns the oldest known price for a watch (used as baseline for
- * percent_drop alert rules). Returns null if no snapshots exist yet.
+ * min_drop alert rules). Returns null if no snapshots exist yet.
  */
 export async function getBaselinePrice(watchId: number): Promise<number | null> {
   const rows = await db.execute<{ price: string }>(sql`

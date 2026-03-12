@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { alertMaxPrice, alertCurrency, ...watchData } = result.data;
+  const { alertMinDrop, ...watchData } = result.data;
 
   const watch = await createWatch({
     name: watchData.name,
@@ -38,14 +38,13 @@ export async function POST(req: NextRequest) {
         }),
   });
 
-  if (alertMaxPrice) {
-    await createAlertRule({
-      watchId: watch.id,
-      type: "absolute_max",
-      value: String(alertMaxPrice),
-      currency: alertCurrency ?? "EUR",
-    });
-  }
+  // Always create a min_drop rule; value 0 = notify on any drop
+  await createAlertRule({
+    watchId: watch.id,
+    type: "min_drop",
+    value: String(alertMinDrop ?? 0),
+    currency: "USD",
+  });
 
   return NextResponse.json(watch, { status: 201 });
 }
